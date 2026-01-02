@@ -15,6 +15,8 @@ WITH simple_lines AS (
     SELECT osm_id, name, highway, (ST_Dump(way)).geom AS geom
     FROM planet_osm_line
     WHERE highway IN ('residential', 'tertiary', 'secondary', 'primary', 'trunk')
+    -- TEST MODE: Filter to a small area (Downtown/Belltown)
+    AND ST_Intersects(way, ST_Transform(ST_MakeEnvelope(-122.36, 47.60, -122.32, 47.62, 4326), 3857))
 ),
 segmented AS (
     SELECT

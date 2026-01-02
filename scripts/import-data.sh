@@ -16,6 +16,11 @@ if ! command -v osm2pgsql &> /dev/null; then
     brew install osm2pgsql
 fi
 
+# Reset Database
+echo "Resetting database..."
+docker compose exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS seattle_pedestrians;"
+docker compose exec -T db psql -U postgres -c "CREATE DATABASE seattle_pedestrians;"
+
 # Enable extensions
 echo "Enabling PostGIS and hstore extensions..."
 docker compose exec -T db psql -U postgres -d seattle_pedestrians -c "CREATE EXTENSION IF NOT EXISTS postgis;"
