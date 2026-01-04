@@ -8,7 +8,37 @@ import * as pmtiles from 'pmtiles';
 
 const SEATTLE_CENTER: [number, number] = [-122.3321, 47.6062];
 
+const SKETCHINESS_LAYER_IDS = ['sketchiness-lines-out', 'sketchiness-lines-in'] as const;
+
+function buildReportIssueUrl(template: string, lngLat: maplibregl.LngLat, zoom?: number): string {
+  const lat = lngLat.lat.toFixed(6);
+  const lng = lngLat.lng.toFixed(6);
+  const zoomStr = typeof zoom === 'number' ? zoom.toFixed(2) : '';
+
+  return template
+    .replaceAll('{lat}', encodeURIComponent(lat))
+    .replaceAll('{lng}', encodeURIComponent(lng))
+    .replaceAll('{latLng}', encodeURIComponent(`${lat},${lng}`))
+    .replaceAll('{zoom}', encodeURIComponent(zoomStr));
+}
+
 function buildBasicOpenMapTilesStyle(pmtilesUrl: string, sketchinessUrl: string): StyleSpecification {
+  const SKETCHINESS_CAP_SWITCH_ZOOM = 15;
+
+  const sketchinessLinePaint = {
+    'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2, 15, 5, 20, 12],
+    // Residential streets are always green; other roads scale by distance.
+    'line-color': [
+      'case',
+      ['==', ['get', 'highway'], 'residential'],
+      '#4caf50',
+      ['interpolate', ['linear'], ['get', 'dist_to_crossing_meters'], 0, '#4caf50', 50, '#fdd835', 100, '#e53935', 150, '#b71c1c'],
+    ],
+    // Differentiate marked vs unmarked crossings.
+    // If nearest crossing is unmarked, render as dashed.
+    'line-opacity': 0.8,
+  };
+
   return {
     version: 8,
     name: 'Seattle (PMTiles) – basic',
@@ -112,57 +142,28 @@ function buildBasicOpenMapTilesStyle(pmtilesUrl: string, sketchinessUrl: string)
       },
       // Sketchiness Layer
       {
-        id: 'sketchiness-lines',
+        id: 'sketchiness-lines-out',
         type: 'line',
         source: 'sketchiness',
         'source-layer': 'streets',
+        maxzoom: SKETCHINESS_CAP_SWITCH_ZOOM,
         layout: {
           'line-join': 'round',
           'line-cap': 'round',
         },
-        paint: {
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            10,
-            2,
-            15,
-            5,
-            20,
-            12,
-          ],
-          // Residential streets are always green; other roads scale by distance.
-          'line-color': [
-            'case',
-            ['==', ['get', 'highway'], 'residential'],
-            '#4caf50',
-            [
-              'interpolate',
-              ['linear'],
-              ['get', 'dist_to_crossing_meters'],
-              0,
-              '#4caf50', // Chill Green
-              50,
-              '#fdd835', // Mellow Yellow
-              75,
-              '#e53935', // Red
-              100,
-              '#b71c1c', // Dark Red
-            ],
-          ],
-          // Differentiate marked vs unmarked crossings.
-          // If nearest crossing is unmarked, render as dashed.
-          'line-dasharray': [
-            'case',
-            ['==', ['get', 'highway'], 'residential'],
-            ['literal', [1, 0]],
-            ['==', ['get', 'nearest_crossing_marked'], true],
-            ['literal', [1, 0]],
-            ['literal', [2, 2]],
-          ],
-          'line-opacity': 0.8,
+        paint: sketchinessLinePaint,
+      },
+      {
+        id: 'sketchiness-lines-in',
+        type: 'line',
+        source: 'sketchiness',
+        'source-layer': 'streets',
+        minzoom: SKETCHINESS_CAP_SWITCH_ZOOM,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'butt',
         },
+        paint: sketchinessLinePaint,
       },
 
       // Road labels (street names)
@@ -229,6 +230,7 @@ export default function Map() {
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
   const tilesBaseUrl = process.env.NEXT_PUBLIC_TILES_BASE_URL;
+  const reportIssueUrlTemplate = process.env.NEXT_PUBLIC_REPORT_ISSUE_URL_TEMPLATE;
 
   const pmtilesUrl = useMemo(() => {
     // If NEXT_PUBLIC_TILES_BASE_URL is set (local dev), use it.
@@ -274,7 +276,7 @@ export default function Map() {
     mapRef.current = map;
 
     // Add click handler for sketchiness lines
-    map.on('click', 'sketchiness-lines', (e) => {
+    const onSketchinessClick = (e: maplibregl.MapLayerMouseEvent) => {
       if (!e.features || e.features.length === 0) return;
 
       const feature = e.features[0];
@@ -289,6 +291,7 @@ export default function Map() {
       
       let displayName = props.name;
       const highwayType = props.highway ? capitalize(props.highway) : 'Unknown Type';
+      const isResidential = props.highway === 'residential';
 
       // If no name, construct a descriptive name from the type
       if (!displayName) {
@@ -312,13 +315,20 @@ export default function Map() {
       const crossingLabel = marked === null ? 'Unknown' : marked ? 'Marked' : 'Unmarked';
 
       const latLng = `${coordinates.lat},${coordinates.lng}`;
-      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(latLng)}`;
       const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encodeURIComponent(latLng)}`;
 
-      const osmId = (props as Record<string, unknown>).osm_id;
-      const osmWayId = typeof osmId === 'number' ? osmId : typeof osmId === 'string' ? Number(osmId) : null;
-      const osmViewUrl = osmWayId ? `https://www.openstreetmap.org/way/${osmWayId}` : null;
-      const osmEditUrl = osmWayId ? `https://www.openstreetmap.org/edit?way=${osmWayId}` : null;
+      const osmViewUrl = `https://www.openstreetmap.org/?mlat=${encodeURIComponent(
+        String(coordinates.lat),
+      )}&mlon=${encodeURIComponent(String(coordinates.lng))}#map=19/${encodeURIComponent(
+        String(coordinates.lat),
+      )}/${encodeURIComponent(String(coordinates.lng))}`;
+
+      const googleFaviconUrl = 'https://www.google.com/s2/favicons?domain=google.com&sz=32';
+      const osmFaviconUrl = 'https://www.google.com/s2/favicons?domain=openstreetmap.org&sz=32';
+
+      const reportIssueUrl = reportIssueUrlTemplate
+        ? buildReportIssueUrl(reportIssueUrlTemplate, coordinates, map.getZoom())
+        : null;
 
       new maplibregl.Popup()
         .setLngLat(coordinates)
@@ -326,27 +336,47 @@ export default function Map() {
           <div style="font-family: sans-serif; padding: 4px;">
             <h3 style="margin: 0 0 4px; font-size: 14px; font-weight: bold;">${displayName}</h3>
             <p style="margin: 0; font-size: 12px;">Type: ${highwayType}</p>
-            <p style="margin: 0; font-size: 12px;">Dist to Crosswalk: <strong>${distance}m</strong></p>
-            <p style="margin: 0; font-size: 12px;">Nearest Crosswalk: <strong>${crossingLabel}</strong></p>
-            <p style="margin: 6px 0 0; font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
-              <a href="${googleMapsUrl}" target="_blank" rel="noopener noreferrer">Google Maps</a>
-              <a href="${streetViewUrl}" target="_blank" rel="noopener noreferrer">Street View</a>
-              ${osmViewUrl ? `<a href="${osmViewUrl}" target="_blank" rel="noopener noreferrer">OSM</a>` : ''}
-              ${osmEditUrl ? `<a href="${osmEditUrl}" target="_blank" rel="noopener noreferrer">Edit OSM</a>` : ''}
-            </p>
+            ${isResidential ? '' : `<p style="margin: 0; font-size: 12px;">Dist to Crosswalk: <strong>${distance}m</strong></p>`}
+            <div style="margin: 8px 0 0; display: flex; gap: 8px; flex-wrap: wrap;">
+              <a
+                href="${streetViewUrl}"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #d0d0d0; border-radius: 6px; text-decoration: none; color: inherit; background: #ffffff; font-size: 12px;"
+              >
+                <img src="${googleFaviconUrl}" alt="" width="16" height="16" style="display: block;" />
+                Street View
+              </a>
+              <a
+                href="${osmViewUrl}"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #d0d0d0; border-radius: 6px; text-decoration: none; color: inherit; background: #ffffff; font-size: 12px;"
+              >
+                <img src="${osmFaviconUrl}" alt="" width="16" height="16" style="display: block;" />
+                OpenStreetMap
+              </a>
+            </div>
+            ${reportIssueUrl ? `<div style="margin: 8px 0 0; font-size: 12px;"><a href="${reportIssueUrl}" target="_blank" rel="noopener noreferrer">Report an issue</a></div>` : ''}
           </div>
         `)
         .addTo(map);
-    });
+    };
+
+    for (const layerId of SKETCHINESS_LAYER_IDS) {
+      map.on('click', layerId, onSketchinessClick);
+    }
 
     // Change cursor on hover
-    map.on('mouseenter', 'sketchiness-lines', () => {
-      map.getCanvas().style.cursor = 'pointer';
-    });
+    for (const layerId of SKETCHINESS_LAYER_IDS) {
+      map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer';
+      });
 
-    map.on('mouseleave', 'sketchiness-lines', () => {
-      map.getCanvas().style.cursor = '';
-    });
+      map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = '';
+      });
+    }
 
     return () => {
       map.remove();
@@ -360,26 +390,26 @@ export default function Map() {
       <div id="map" ref={mapContainerRef} />
 
       <div className="map-overlay map-overlay--title" role="heading" aria-level={1}>
-        Seattle Pedestrian Awfulness Map
+        Seattle Crosswalk Availability Map
       </div>
 
       <div className="map-overlay map-overlay--legend" aria-label="Legend">
-        <div className="legend-title">Legend (Marked Crossing Availability)</div>
+        <div className="legend-title">Legend</div>
         <div className="legend-row">
           <span className="legend-line legend-line--green" />
           <span>0–50m to crossing (and residential streets)</span>
         </div>
         <div className="legend-row">
           <span className="legend-line legend-line--yellow" />
-          <span>50–75m</span>
+          <span>50–100m</span>
         </div>
         <div className="legend-row">
           <span className="legend-line legend-line--red" />
-          <span>75–100m</span>
+          <span>100–150m</span>
         </div>
         <div className="legend-row">
           <span className="legend-line legend-line--darkred" />
-          <span>100m+</span>
+          <span>150m+</span>
         </div>
       </div>
     </div>

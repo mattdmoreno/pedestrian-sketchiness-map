@@ -58,6 +58,31 @@ Start dev (runs Next.js + tile server together):
 pnpm dev
 ```
 
+## Report an issue (Google Form)
+
+The map supports a simple “Report an issue” link that opens a Google Form prefilled with the clicked location.
+
+1) In Google Forms, add a short-answer question like “Location”.
+
+2) Use **Get pre-filled link** in Google Forms, fill in any value for that question, and copy the generated URL.
+
+3) Put that URL into an env var, replacing the location value with `{latLng}`:
+
+```sh
+# .env.local
+NEXT_PUBLIC_REPORT_ISSUE_URL_TEMPLATE="https://docs.google.com/forms/d/e/1FAIpQLSfXe8xGwzD7KtYl_er0SNgElbAU2ztAXRIESZ1mxzhr-df2bg/viewform?usp=pp_url&entry.670432178={latLng}"
+```
+
+For GitHub Pages: `.env.local` is not used in CI. Instead set a GitHub Actions variable:
+- Repo Settings → Secrets and variables → Actions → Variables → New repository variable
+- Name: `NEXT_PUBLIC_REPORT_ISSUE_URL_TEMPLATE`
+- Value: (your template URL)
+
+Supported template tokens:
+- `{latLng}` → `47.606200,-122.332100`
+- `{lat}` / `{lng}`
+- `{zoom}`
+
 ## Host on GitHub Pages (static) (Option A)
 
 This project can be hosted as a fully static site on GitHub Pages.

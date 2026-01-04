@@ -3,6 +3,7 @@ body {
   height: 100%;
   width: 100%;
   margin: 0;
+  overflow: hidden;
 }
 
 * {
@@ -11,12 +12,14 @@ body {
 
 #map {
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
 }
 
 .map-shell {
   position: relative;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
 }
 
@@ -32,15 +35,15 @@ body {
 }
 
 .map-overlay--title {
-  top: 12px;
-  left: 12px;
+  top: calc(12px + env(safe-area-inset-top));
+  left: calc(12px + env(safe-area-inset-left));
   font-size: 14px;
   font-weight: 700;
 }
 
 .map-overlay--legend {
-  left: 12px;
-  bottom: 12px;
+  left: calc(12px + env(safe-area-inset-left));
+  bottom: calc(12px + env(safe-area-inset-bottom));
   min-width: 220px;
   font-size: 12px;
 }

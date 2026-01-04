@@ -42,6 +42,7 @@ jobs:
       - name: Build (static export)
         env:
           NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+          NEXT_PUBLIC_REPORT_ISSUE_URL_TEMPLATE: ${{ vars.NEXT_PUBLIC_REPORT_ISSUE_URL_TEMPLATE }}
         run: pnpm build
 
       - name: Disable Jekyll
