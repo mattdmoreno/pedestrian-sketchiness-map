@@ -57,9 +57,13 @@ body {
   animation: map-overlay-enter 140ms ease-out;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .map-shell--has-selection .map-overlay--title {
     display: none;
+  }
+
+  .map-overlay--legend {
+    bottom: calc(38px + env(safe-area-inset-bottom));
   }
 }
 
