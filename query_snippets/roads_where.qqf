@@ -1,0 +1,1 @@
+<Query>"highway" IN ('living_street','motorway''motorway_link','primary','primary_link','residential','secondary','secondary_link','service','tertiary','tertiary_link','trunk','trunk_link')</Query>
