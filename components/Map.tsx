@@ -3,8 +3,10 @@
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import maplibregl, { type StyleSpecification } from 'maplibre-gl';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as pmtiles from 'pmtiles';
+
+import FeatureInfoPanel, { type FeatureInfo } from './FeatureInfoPanel';
 
 const SEATTLE_CENTER: [number, number] = [-122.3321, 47.6062];
 
@@ -227,6 +229,9 @@ function buildBasicOpenMapTilesStyle(pmtilesUrl: string, sketchinessUrl: string)
 export default function Map() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const markerRef = useRef<maplibregl.Marker | null>(null);
+
+  const [selected, setSelected] = useState<FeatureInfo | null>(null);
 
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
   const tilesBaseUrl = process.env.NEXT_PUBLIC_TILES_BASE_URL;
@@ -284,7 +289,9 @@ export default function Map() {
       
       if (!props) return;
 
-      const coordinates = e.lngLat;
+      const lngLatLike = (e as unknown as { lngLat?: maplibregl.LngLatLike }).lngLat;
+      if (!lngLatLike) return;
+      const coordinates = maplibregl.LngLat.convert(lngLatLike);
       
       // Helper to capitalize words
       const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -298,9 +305,8 @@ export default function Map() {
         displayName = `${highwayType} Road`;
       }
 
-      const distance = typeof props.dist_to_crossing_meters === 'number' 
-        ? Math.round(props.dist_to_crossing_meters) 
-        : 'N/A';
+      const distanceMeters =
+        typeof props.dist_to_crossing_meters === 'number' ? Math.round(props.dist_to_crossing_meters) : null;
 
       const markedRaw = (props as Record<string, unknown>).nearest_crossing_marked;
       const marked =
@@ -311,8 +317,6 @@ export default function Map() {
             : typeof markedRaw === 'string'
               ? ['true', 't', '1', 'yes', 'y'].includes(markedRaw.toLowerCase())
               : null;
-
-      const crossingLabel = marked === null ? 'Unknown' : marked ? 'Marked' : 'Unmarked';
 
       const latLng = `${coordinates.lat},${coordinates.lng}`;
       const streetViewUrl = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${encodeURIComponent(latLng)}`;
@@ -330,49 +334,24 @@ export default function Map() {
         ? buildReportIssueUrl(reportIssueUrlTemplate, coordinates, map.getZoom())
         : null;
 
-      new maplibregl.Popup()
-        .setLngLat(coordinates)
-        .setHTML(`
-          <div style="font-family: sans-serif; padding: 4px; width: fit-content; max-width: calc(100vw - 40px); box-sizing: border-box;">
-            <h3 style="margin: 0 0 4px; font-size: 14px; font-weight: bold;">${displayName}</h3>
-            <p style="margin: 0; font-size: 12px;">Type: ${highwayType}</p>
-            ${isResidential ? '' : `<p style="margin: 0; font-size: 12px;">Dist to Crosswalk: <strong>${distance}m</strong></p>`}
-            <div style="margin: 8px 0 0; display: flex; flex-direction: column; gap: 8px;">
-              <a
-                href="${streetViewUrl}"
-                target="_blank"
-                rel="noopener noreferrer"
-                style="align-self: flex-start; width: fit-content; max-width: 100%; display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #d0d0d0; border-radius: 6px; text-decoration: none; color: inherit; background: #ffffff; font-size: 12px; white-space: nowrap; text-align: center; line-height: 1.2;"
-              >
-                <img
-                  src="${googleFaviconUrl}"
-                  alt=""
-                  width="16"
-                  height="16"
-                  style="display: block; flex: 0 0 auto; object-fit: contain;"
-                />
-                <span>Street View</span>
-              </a>
-              <a
-                href="${osmViewUrl}"
-                target="_blank"
-                rel="noopener noreferrer"
-                style="align-self: flex-start; width: fit-content; max-width: 100%; display: inline-flex; justify-content: center; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #d0d0d0; border-radius: 6px; text-decoration: none; color: inherit; background: #ffffff; font-size: 12px; white-space: nowrap; text-align: center; line-height: 1.2;"
-              >
-                <img
-                  src="${osmFaviconUrl}"
-                  alt=""
-                  width="16"
-                  height="16"
-                  style="display: block; flex: 0 0 auto; object-fit: contain;"
-                />
-                <span>OpenStreetMap</span>
-              </a>
-            </div>
-            ${reportIssueUrl ? `<div style="margin: 8px 0 0; font-size: 12px;"><a href="${reportIssueUrl}" target="_blank" rel="noopener noreferrer">Report an issue</a></div>` : ''}
-          </div>
-        `)
-        .addTo(map);
+      if (!markerRef.current) {
+        markerRef.current = new maplibregl.Marker().setLngLat(coordinates).addTo(map);
+      } else {
+        markerRef.current.setLngLat(coordinates);
+      }
+
+      setSelected({
+        title: displayName,
+        highwayType,
+        isResidential,
+        distanceMeters,
+        lngLat: coordinates,
+        actions: [
+          { href: streetViewUrl, label: 'Street View', iconUrl: googleFaviconUrl },
+          { href: osmViewUrl, label: 'OSM', iconUrl: osmFaviconUrl },
+        ],
+        reportIssueUrl,
+      });
     };
 
     for (const layerId of SKETCHINESS_LAYER_IDS) {
@@ -390,7 +369,22 @@ export default function Map() {
       });
     }
 
+    // Clear selection when clicking away from a feature.
+    map.on('click', (e) => {
+      const features = map.queryRenderedFeatures(e.point, {
+        layers: [...SKETCHINESS_LAYER_IDS],
+      });
+      if (features.length > 0) return;
+
+      markerRef.current?.remove();
+      markerRef.current = null;
+      setSelected(null);
+    });
+
     return () => {
+      markerRef.current?.remove();
+      markerRef.current = null;
+
       map.remove();
       mapRef.current = null;
       maplibregl.removeProtocol('pmtiles');
@@ -400,6 +394,8 @@ export default function Map() {
   return (
     <div className="map-shell">
       <div id="map" ref={mapContainerRef} />
+
+      {selected ? <FeatureInfoPanel info={selected} /> : null}
 
       <div className="map-overlay map-overlay--title" role="heading" aria-level={1}>
         Seattle Crosswalk Availability Map
