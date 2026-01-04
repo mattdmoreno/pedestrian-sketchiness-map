@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Pedestrian Awfulness Map',
+  title: 'Seattle Crosswalk Accessibility Map',
   description: 'Seattle basemap + overlays from PMTiles',
 };
 
