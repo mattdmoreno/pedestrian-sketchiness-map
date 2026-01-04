@@ -12,6 +12,7 @@ type ActionLink = {
 export type UnmarkedCrossingInfo = {
   id: number;
   title: string;
+  roadName?: string | null;
   lngLat: maplibregl.LngLat;
   froggerIndex: number;
   distanceToMarkedCrosswalkMeters?: number | null;
@@ -80,6 +81,32 @@ const tableValueStyle: React.CSSProperties = {
   verticalAlign: 'top',
 };
 
+function maybeParseSpeedMph(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const match = value.match(/(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const num = Number(match[1]);
+  return Number.isFinite(num) ? num : null;
+}
+
+function buildFroggerHref(params: {
+  name: string | null;
+  highway: string | null;
+  lanes: number | null;
+  speedMph: number | null;
+  distToMarkedM: number | null;
+  froggerIndex: number | null;
+}): string {
+  const sp = new URLSearchParams();
+  if (params.name) sp.set('name', params.name);
+  if (params.highway) sp.set('highway', params.highway);
+  if (typeof params.lanes === 'number' && Number.isFinite(params.lanes)) sp.set('lanes', String(params.lanes));
+  if (typeof params.speedMph === 'number' && Number.isFinite(params.speedMph)) sp.set('speed', String(params.speedMph));
+  if (typeof params.distToMarkedM === 'number' && Number.isFinite(params.distToMarkedM)) sp.set('dist', String(params.distToMarkedM));
+  if (typeof params.froggerIndex === 'number' && Number.isFinite(params.froggerIndex)) sp.set('fi', String(params.froggerIndex));
+  return `/frogger?${sp.toString()}`;
+}
+
 function formatMaybeNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   const num = typeof value === 'string' ? Number(value) : Number.NaN;
@@ -122,7 +149,15 @@ export default function UnmarkedCrossingInfoPanel({
 
   const lanes = formatMaybeNumber(info.lanes);
   const dist = formatMaybeNumber(info.distanceToMarkedCrosswalkMeters);
-  const difficulty = froggerDifficultyLabel(info.froggerIndex);
+  const speedMph = formatMaybeNumber(info.speedMph) ?? maybeParseSpeedMph(info.maxspeed);
+  const froggerHref = buildFroggerHref({
+    name: info.roadName ?? null,
+    highway: info.roadHighway ?? null,
+    lanes,
+    speedMph,
+    distToMarkedM: dist,
+    froggerIndex: Number.isFinite(info.froggerIndex) ? info.froggerIndex : null,
+  });
 
   return (
     <div className="map-overlay map-overlay--info" aria-label="Selected unmarked crossing">
@@ -191,9 +226,12 @@ export default function UnmarkedCrossingInfoPanel({
               </tr>
             ) : null}
             <tr>
-              <td style={{ ...tableKeyStyle, paddingTop: 8 }}>Frogger difficulty index</td>
+              <td style={{ ...tableKeyStyle, paddingTop: 8 }}>Play Frogger</td>
               <td style={{ ...tableValueStyle, paddingTop: 8 }}>
-                <strong>{info.froggerIndex.toFixed(2)}</strong> ({difficulty})
+                <a href={froggerHref} style={{ ...buttonStyle, padding: '6px 10px' }} aria-label="Play Frogger">
+                  <i className="fa-solid fa-play" aria-hidden="true" />
+                  Play
+                </a>
               </td>
             </tr>
           </tbody>

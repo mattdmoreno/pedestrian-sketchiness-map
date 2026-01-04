@@ -621,6 +621,7 @@ export default function Map() {
           setSelectedUnmarked({
             id,
             title: buildUnmarkedCrossingTitle(roadName),
+            roadName,
             lngLat,
             froggerIndex: Number.isFinite(froggerIndex) ? froggerIndex : 0,
             lanes: Number.isFinite(lanes as number) ? (lanes as number) : null,
@@ -760,6 +761,7 @@ export default function Map() {
       return {
         id,
         title: buildUnmarkedCrossingTitle(roadName),
+        roadName,
         lngLat: coordinates,
         froggerIndex: Number.isFinite(froggerIndex) ? froggerIndex : 0,
         lanes: Number.isFinite(lanes as number) ? (lanes as number) : null,

@@ -79,6 +79,32 @@ const tableValueStyle: React.CSSProperties = {
   verticalAlign: 'top',
 };
 
+function maybeParseSpeedMph(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const match = value.match(/(\d+(?:\.\d+)?)/);
+  if (!match) return null;
+  const num = Number(match[1]);
+  return Number.isFinite(num) ? num : null;
+}
+
+function buildFroggerHref(params: {
+  name: string | null;
+  highway: string | null;
+  lanes: number | null;
+  speedMph: number | null;
+  distToMarkedM: number | null;
+  froggerIndex: number | null;
+}): string {
+  const sp = new URLSearchParams();
+  if (params.name) sp.set('name', params.name);
+  if (params.highway) sp.set('highway', params.highway);
+  if (typeof params.lanes === 'number' && Number.isFinite(params.lanes)) sp.set('lanes', String(params.lanes));
+  if (typeof params.speedMph === 'number' && Number.isFinite(params.speedMph)) sp.set('speed', String(params.speedMph));
+  if (typeof params.distToMarkedM === 'number' && Number.isFinite(params.distToMarkedM)) sp.set('dist', String(params.distToMarkedM));
+  if (typeof params.froggerIndex === 'number' && Number.isFinite(params.froggerIndex)) sp.set('fi', String(params.froggerIndex));
+  return `/frogger?${sp.toString()}`;
+}
+
 function froggerDifficultyLabel(froggerIndex: number): string {
   if (!Number.isFinite(froggerIndex)) return 'easy';
   if (froggerIndex < 0.2) return 'easy';
@@ -111,8 +137,15 @@ export default function FeatureInfoPanel({
     resetTimerRef.current = window.setTimeout(() => setTooltip('hidden'), 1200);
   };
 
-  const froggerIndex = typeof info.froggerIndex === 'number' ? info.froggerIndex : null;
-  const difficulty = typeof froggerIndex === 'number' ? froggerDifficultyLabel(froggerIndex) : null;
+  const speedMph = maybeParseSpeedMph(info.maxspeed);
+  const froggerHref = buildFroggerHref({
+    name: info.title ?? null,
+    highway: info.highwayType ?? null,
+    lanes: typeof info.lanes === 'number' ? info.lanes : null,
+    speedMph,
+    distToMarkedM: typeof info.distanceMeters === 'number' ? info.distanceMeters : null,
+    froggerIndex: typeof info.froggerIndex === 'number' && Number.isFinite(info.froggerIndex) ? info.froggerIndex : null,
+  });
 
   return (
     <div className="map-overlay map-overlay--info" aria-label="Selected street">
@@ -184,14 +217,15 @@ export default function FeatureInfoPanel({
                 </td>
               </tr>
             ) : null}
-            {typeof froggerIndex === 'number' && difficulty ? (
-              <tr>
-                <td style={{ ...tableKeyStyle, paddingTop: 8 }}>Frogger difficulty index</td>
-                <td style={{ ...tableValueStyle, paddingTop: 8 }}>
-                  <strong>{froggerIndex.toFixed(2)}</strong> ({difficulty})
-                </td>
-              </tr>
-            ) : null}
+            <tr>
+              <td style={{ ...tableKeyStyle, paddingTop: 8 }}>Play Frogger</td>
+              <td style={{ ...tableValueStyle, paddingTop: 8 }}>
+                <a href={froggerHref} style={{ ...buttonStyle, padding: '6px 10px' }} aria-label="Play Frogger">
+                  <i className="fa-solid fa-play" aria-hidden="true" />
+                  Play
+                </a>
+              </td>
+            </tr>
           </tbody>
         </table>
 
