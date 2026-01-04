@@ -38,6 +38,10 @@ WHERE l.way IS NOT NULL
         AND l.highway = ANY (params.road_highways)
         AND (NOT params.use_bbox OR l.way && params.test_bbox);
 
+-- Spatial index used by the road<->crosswalk join below
+CREATE INDEX IF NOT EXISTS roads_geom_gist ON roads USING GIST (geom);
+ANALYZE roads;
+
 -- 2) Crosswalk points table
 DROP TABLE IF EXISTS crosswalk_raw_points;
 CREATE UNLOGGED TABLE crosswalk_raw_points AS
@@ -53,6 +57,10 @@ FROM planet_osm_point AS p
 CROSS JOIN crosswalks_params AS params
 WHERE p.highway = 'crossing'
         AND (NOT params.use_bbox OR p.way && params.test_bbox);
+
+-- Spatial index used by the road<->crosswalk join below
+CREATE INDEX IF NOT EXISTS crosswalk_raw_points_geom_gist ON crosswalk_raw_points USING GIST (geom);
+ANALYZE crosswalk_raw_points;
 
 -- 3) Crosswalk lines table (footways explicitly tagged as crossings)
 DROP TABLE IF EXISTS crosswalk_raw_lines;
@@ -74,7 +82,7 @@ WHERE l.highway = 'footway'
 -- 4) Link table: road <-> crosswalk feature
 -- Supports lookup by road id, point id, or line id.
 DROP TABLE IF EXISTS road_crosswalks;
-CREATE TABLE road_crosswalks AS
+CREATE UNLOGGED TABLE road_crosswalks AS
 SELECT
         r.road_osm_id,
         'point'::text AS crosswalk_kind,
@@ -103,6 +111,8 @@ JOIN roads AS r
 CREATE INDEX IF NOT EXISTS road_crosswalks_road_idx ON road_crosswalks (road_osm_id);
 CREATE INDEX IF NOT EXISTS road_crosswalks_point_idx ON road_crosswalks (point_osm_id);
 -- CREATE INDEX IF NOT EXISTS road_crosswalks_line_idx ON road_crosswalks (line_osm_id);
+
+ANALYZE road_crosswalks;
 
 -- 5) Crosswalks (points enriched with roads they cross)
 DROP TABLE IF EXISTS crosswalk_points;
