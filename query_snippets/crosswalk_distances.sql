@@ -1,6 +1,8 @@
 
 -- Builds 20m road segments for display, each annotated with distance to the nearest
--- marked crosswalk POINT on the same road.
+-- marked crosswalk POINT on any road with the same name (within 500m).
+-- Also materializes `streets_analyzed` (the table used by the map/tiles) so you don't
+-- need the older analyze-sketchiness flow.
 --
 -- Assumes you've already run query_snippets/crosswalks.sql to create:
 --   - roads (road_osm_id, name, highway, geom)
@@ -11,14 +13,13 @@
 -- - Geometries are expected in EPSG:3857 so distances are ~meters.
 
 DROP TABLE IF EXISTS marked_crosswalk_road;
-DROP TABLE IF EXISTS roads_same_name_endpoints;
-DROP TABLE IF EXISTS roads_same_name_edges;
-DROP TABLE IF EXISTS roads_same_name_connected;
 DROP TABLE IF EXISTS road_segments_20m;
 DROP TABLE IF EXISTS road_segments_20m_crosswalk_dist;
+DROP TABLE IF EXISTS streets_analyzed;
 
 -- Ensure base road geometry has a GiST index (needed for many spatial ops; harmless if already present)
 CREATE INDEX IF NOT EXISTS roads_geom_gist ON roads USING GIST (geom);
+CREATE INDEX IF NOT EXISTS roads_name_idx ON roads (name);
 ANALYZE roads;
 
 -- Marked crosswalk points attached to roads (uses precomputed intersections in road_crosswalks)
@@ -94,73 +95,8 @@ CREATE INDEX road_segments_20m_geom_gist ON road_segments_20m USING GIST (geom);
 
 ANALYZE road_segments_20m;
 
--- Build a same-name connectivity graph.
--- Definition (per your spec): two roads are connected when one road's start point equals
--- the other's end point (or vice-versa). We compute transitive connectivity per road.
-CREATE UNLOGGED TABLE roads_same_name_endpoints AS
-SELECT
-    r.road_osm_id,
-    r.name,
-    ST_StartPoint(ST_LineMerge(r.geom)) AS start_pt,
-    ST_EndPoint(ST_LineMerge(r.geom)) AS end_pt
-FROM roads r
-WHERE r.geom IS NOT NULL
-  AND r.name IS NOT NULL
-  AND btrim(r.name) <> ''
-  AND GeometryType(ST_LineMerge(r.geom)) = 'LINESTRING';
-
-CREATE INDEX roads_same_name_endpoints_name_idx ON roads_same_name_endpoints (name);
-CREATE INDEX roads_same_name_endpoints_start_gist ON roads_same_name_endpoints USING GIST (start_pt);
-CREATE INDEX roads_same_name_endpoints_end_gist ON roads_same_name_endpoints USING GIST (end_pt);
-
-ANALYZE roads_same_name_endpoints;
-
-CREATE UNLOGGED TABLE roads_same_name_edges AS
-SELECT
-    a.road_osm_id AS from_road_osm_id,
-    b.road_osm_id AS to_road_osm_id
-FROM roads_same_name_endpoints a
-JOIN roads_same_name_endpoints b
-  ON a.road_osm_id <> b.road_osm_id
- AND a.name = b.name
- AND (ST_Equals(a.start_pt, b.end_pt) OR ST_Equals(a.end_pt, b.start_pt));
-
-CREATE INDEX roads_same_name_edges_from_idx ON roads_same_name_edges (from_road_osm_id);
-CREATE INDEX roads_same_name_edges_to_idx ON roads_same_name_edges (to_road_osm_id);
-
-ANALYZE roads_same_name_edges;
-
-CREATE UNLOGGED TABLE roads_same_name_connected AS
-WITH RECURSIVE reach AS (
-    SELECT
-        e.from_road_osm_id AS start_road_osm_id,
-        e.from_road_osm_id AS road_osm_id,
-        ARRAY[e.from_road_osm_id]::bigint[] AS path
-    FROM (SELECT DISTINCT from_road_osm_id FROM roads_same_name_edges) e
-
-    UNION ALL
-
-    SELECT
-        r.start_road_osm_id,
-        e.to_road_osm_id AS road_osm_id,
-        (r.path || e.to_road_osm_id)
-    FROM reach r
-    JOIN roads_same_name_edges e
-      ON e.from_road_osm_id = r.road_osm_id
-    WHERE NOT (e.to_road_osm_id = ANY (r.path))
-)
-SELECT DISTINCT start_road_osm_id, road_osm_id
-FROM reach
-UNION
-SELECT road_osm_id AS start_road_osm_id, road_osm_id
-FROM roads_same_name_endpoints;
-
-CREATE INDEX roads_same_name_connected_start_idx ON roads_same_name_connected (start_road_osm_id);
-CREATE INDEX roads_same_name_connected_road_idx ON roads_same_name_connected (road_osm_id);
-
-ANALYZE roads_same_name_connected;
-
--- Nearest marked crosswalk distance per segment across all connected roads with the same name
+-- Nearest marked crosswalk distance per segment, considering crosswalks on roads with the same name.
+-- Only searches within 500m; if none found, distance is set to 500m.
 CREATE UNLOGGED TABLE road_segments_20m_crosswalk_dist AS
 SELECT
     s.road_osm_id,
@@ -169,16 +105,19 @@ SELECT
     s.segment_no,
     s.geom,
     nearest.crosswalk_id AS nearest_marked_crosswalk_id,
-    nearest.dist_m AS dist_to_marked_crosswalk_m
+    COALESCE(nearest.dist_m, 500.0::double precision) AS dist_to_marked_crosswalk_m
 FROM road_segments_20m s
 LEFT JOIN LATERAL (
     SELECT
         m.crosswalk_id,
         ST_Distance(s.geom, m.geom) AS dist_m
     FROM marked_crosswalk_road m
-    JOIN roads_same_name_connected c
-      ON c.road_osm_id = m.road_osm_id
-    WHERE c.start_road_osm_id = s.road_osm_id
+    JOIN roads r2
+      ON r2.road_osm_id = m.road_osm_id
+    WHERE s.name IS NOT NULL
+      AND btrim(s.name) <> ''
+      AND r2.name = s.name
+      AND ST_DWithin(s.geom, m.geom, 500.0)
     ORDER BY s.geom <-> m.geom
     LIMIT 1
 ) AS nearest ON true;
@@ -187,4 +126,20 @@ CREATE INDEX road_segments_20m_crosswalk_dist_road_idx ON road_segments_20m_cros
 CREATE INDEX road_segments_20m_crosswalk_dist_geom_gist ON road_segments_20m_crosswalk_dist USING GIST (geom);
 
 ANALYZE road_segments_20m_crosswalk_dist;
+
+-- Canonical serving/export table (keeps the property names the map style expects).
+CREATE UNLOGGED TABLE streets_analyzed AS
+SELECT
+    row_number() OVER (ORDER BY road_osm_id, segment_no)::bigint AS osm_id,
+    name,
+    highway,
+    dist_to_marked_crosswalk_m AS dist_to_crossing_meters,
+    (nearest_marked_crosswalk_id IS NOT NULL) AS nearest_crossing_marked,
+    geom
+FROM road_segments_20m_crosswalk_dist;
+
+CREATE INDEX streets_analyzed_geom_gist ON streets_analyzed USING GIST (geom);
+CREATE INDEX streets_analyzed_osm_id_idx ON streets_analyzed (osm_id);
+
+ANALYZE streets_analyzed;
 

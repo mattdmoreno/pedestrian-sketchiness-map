@@ -26,7 +26,7 @@ STREETS_GJ="$TMP_DIR/streets.geojsonseq"
 
 ogr2ogr -f GeoJSONSeq "$STREETS_GJ" \
   "PG:host=localhost port=5432 dbname=seattle_pedestrians user=postgres password=postgres" \
-  -sql "SELECT osm_id, name, highway, dist_to_crossing_meters, nearest_crossing_marked, geom FROM streets_analyzed"
+  -sql "SELECT osm_id, name, highway, COALESCE(LEAST(dist_to_crossing_meters, 500.0), 500.0) AS dist_to_crossing_meters, nearest_crossing_marked, geom FROM streets_analyzed"
 
 tippecanoe -o "$OUT_MBTILES" \
   --force \
