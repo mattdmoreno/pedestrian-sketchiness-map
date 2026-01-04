@@ -10,5 +10,8 @@ out/
 *.pmtiles
 *.mbtiles
 
+# Allow PMTiles to be committed for static hosting (GitHub Pages).
+!public/**/*.pmtiles
+
 # Logs
 *.log

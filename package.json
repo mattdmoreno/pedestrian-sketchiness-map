@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "concurrently -k -n TILES,NEXT -c cyan,green \"pnpm dev:tiles\" \"next dev\"",
+    "dev": "concurrently -k -n TILES,NEXT -c cyan,green \"pnpm dev:tiles\" \"NEXT_PUBLIC_TILES_BASE_URL=http://localhost:8080 next dev\"",
     "dev:tiles": "http-server ./data --cors -p 8080 -c-1",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",

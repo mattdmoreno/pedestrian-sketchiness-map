@@ -227,14 +227,22 @@ export default function Map() {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
 
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+  const tilesBaseUrl = process.env.NEXT_PUBLIC_TILES_BASE_URL;
+
   const pmtilesUrl = useMemo(() => {
-    // Served by `npm run dev` (http-server ./data)
-    return 'http://localhost:8080/basemap-seattle.pmtiles';
-  }, []);
+    // If NEXT_PUBLIC_TILES_BASE_URL is set (local dev), use it.
+    // Otherwise (static hosting), serve PMTiles from this site under basePath.
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const root = tilesBaseUrl ?? `${origin}${basePath}`;
+    return `${root}/basemap-seattle.pmtiles`;
+  }, [basePath, tilesBaseUrl]);
 
   const sketchinessUrl = useMemo(() => {
-    return 'http://localhost:8080/sketchiness.pmtiles';
-  }, []);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const root = tilesBaseUrl ?? `${origin}${basePath}`;
+    return `${root}/sketchiness.pmtiles`;
+  }, [basePath, tilesBaseUrl]);
 
   const style = useMemo(() => buildBasicOpenMapTilesStyle(pmtilesUrl, sketchinessUrl), [pmtilesUrl, sketchinessUrl]);
 

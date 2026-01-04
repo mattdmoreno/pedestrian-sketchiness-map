@@ -58,6 +58,39 @@ Start dev (runs Next.js + tile server together):
 pnpm dev
 ```
 
+## Host on GitHub Pages (static) (Option A)
+
+This project can be hosted as a fully static site on GitHub Pages.
+
+Important constraints:
+- GitHub Pages serves static files only (no PostGIS / no API routes).
+- PMTiles are fetched via HTTP Range requests; GitHub Pages generally works for this.
+- The GitHub Actions workflow does **not** generate tiles; it expects the PMTiles to be present in `public/` (committed).
+
+Steps:
+
+1) Generate the tiles locally:
+
+```sh
+./scripts/run-analysis.sh
+./scripts/export-sketchiness-tiles.sh
+```
+
+2) Copy PMTiles into `public/` so they get deployed:
+
+```sh
+chmod +x ./scripts/copy-tiles-to-public.sh
+./scripts/copy-tiles-to-public.sh
+```
+
+3) Commit the `public/*.pmtiles` files and push to `main`.
+
+4) In GitHub repo settings:
+- Settings → Pages → Build and deployment → Source: **GitHub Actions**
+
+The deployed site will be at:
+- `https://<your-user>.github.io/<repo-name>/`
+
 ## Notes
 
 - Planetiler’s OpenMapTiles profile downloads additional global sources (Natural Earth, water polygons, etc.). These are cached under `data/`.
