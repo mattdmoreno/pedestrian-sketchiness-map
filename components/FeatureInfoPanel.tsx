@@ -143,9 +143,11 @@ function froggerDifficultyLabel(froggerIndex: number): string {
 export default function FeatureInfoPanel({
   info,
   onShare,
+  unitIndex,
 }: {
   info: FeatureInfo;
   onShare: () => Promise<boolean>;
+  unitIndex: number;
 }) {
   const [tooltip, setTooltip] = useState<'hidden' | 'copy' | 'copied' | 'failed'>('hidden');
   const resetTimerRef = useRef<number | null>(null);
@@ -166,6 +168,27 @@ export default function FeatureInfoPanel({
 
   const lanes = formatMaybeNumber(info.lanes);
   const dist = formatMaybeNumber(info.distanceMeters);
+
+  // Unit conversion logic
+  let distDisplay: string | null = null;
+  let unitLabel = '';
+  if (typeof dist === 'number') {
+    if (unitIndex === 0 || unitIndex === 3) {
+      distDisplay = Math.round(dist).toString();
+      unitLabel = 'm';
+    } else if (unitIndex === 1) {
+      distDisplay = Math.round(dist * 3.28084).toString();
+      unitLabel = 'ft';
+    } else if (unitIndex === 2) {
+      // Football fields: 110m each, 1 decimal place
+      distDisplay = (dist / 110).toFixed(1);
+      unitLabel = 'football fields';
+    } else if (unitIndex === 4) {
+      // Bald eagles: 2m each, 1 decimal place
+      distDisplay = (dist / 2).toFixed(1);
+      unitLabel = 'bald eagles';
+    }
+  }
   const speedMph = formatMaybeNumber(info.maxspeed) ?? maybeParseSpeedMph(info.maxspeed);
   const froggerHref = buildFroggerHref({
     name: info.title ?? null,
@@ -223,11 +246,11 @@ export default function FeatureInfoPanel({
 
         <table style={tableStyle}>
           <tbody>
-            {typeof dist === 'number' ? (
+            {typeof distDisplay === 'string' ? (
               <tr>
-                <td style={tableKeyStyle}>Dist to marked</td>
+                <td style={tableKeyStyle}>Dist to marked crossing</td>
                 <td style={tableValueStyle}>
-                  <strong>{Math.round(dist)}m</strong>
+                  <strong>{distDisplay}{unitIndex === 2 || unitIndex === 4 ? '' : unitLabel}</strong>{unitIndex === 2 || unitIndex === 4 ? ` ${unitLabel}` : ''}
                 </td>
               </tr>
             ) : null}

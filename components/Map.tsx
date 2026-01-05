@@ -340,6 +340,9 @@ export default function Map() {
 
   const [selected, setSelected] = useState<FeatureInfo | null>(null);
   const [selectedUnmarked, setSelectedUnmarked] = useState<UnmarkedCrossingInfo | null>(null);
+  // Legend unit cycling: 0: meters, 1: meters (No!), 2: meters (still no!), 3: football fields (ok fine), 4: meters (welcome back), 5: bald eagles
+  const [legendUnitIndex, setLegendUnitIndex] = useState(0);
+  const [showLegendButton, setShowLegendButton] = useState(true);
   const [unitsRejected, setUnitsRejected] = useState(false);
 
   useEffect(() => {
@@ -925,8 +928,8 @@ export default function Map() {
     <div className={selected || selectedUnmarked ? 'map-shell map-shell--has-selection' : 'map-shell'}>
       <div id="map" ref={mapContainerRef} />
 
-      {selected ? <FeatureInfoPanel info={selected} onShare={handleShare} /> : null}
-      {selectedUnmarked ? <UnmarkedCrossingInfoPanel info={selectedUnmarked} onShare={handleShare} /> : null}
+      {selected ? <FeatureInfoPanel info={selected} onShare={handleShare} unitIndex={0} /> : null}
+      {selectedUnmarked ? <UnmarkedCrossingInfoPanel info={selectedUnmarked} onShare={handleShare} unitIndex={0} /> : null}
 
       <div className="map-overlay map-overlay--title" role="heading" aria-level={1}>
         Seattle Crosswalk Availability Map
@@ -934,33 +937,91 @@ export default function Map() {
 
       <div className="map-overlay map-overlay--legend" aria-label="Legend">
         <div className="legend-title">Legend</div>
-        <div className="legend-row">
-          <span className="legend-line legend-line--green" />
-          <span>0–100m to crossing (and residential streets)</span>
-        </div>
-        <div className="legend-row">
-          <span className="legend-line legend-line--yellow" />
-          <span>100–200m</span>
-        </div>
-        <div className="legend-row">
-          <span className="legend-line legend-line--red" />
-          <span>200–500m</span>
-        </div>
-        <div className="legend-row">
-          <span className="legend-line legend-line--darkred" />
-          <span>500m+</span>
-        </div>
-
-        <div className="legend-actions">
-          {unitsRejected ? (
-            <span className="legend-no" aria-live="polite">
-              no! 🙂
-            </span>
-          ) : (
-            <button type="button" className="legend-button" onClick={() => setUnitsRejected(true)}>
+        {legendUnitIndex === 3 ? (
+          <>
+            <div className="legend-row">
+              <span className="legend-line legend-line--green" />
+              <span>0–0.91 football fields to crossing (and residential streets)</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line--yellow" />
+              <span>0.91–1.82 football fields</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line--red" />
+              <span>1.82–4.55 football fields</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line--darkred" />
+              <span>4.55+ football fields</span>
+            </div>
+          </>
+        ) : legendUnitIndex === 5 ? (
+          <>
+            <div className="legend-row">
+              <span className="legend-line legend-line--green" />
+              <span>0–50 bald eagles to crossing (and residential streets)</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line--yellow" />
+              <span>50–100 bald eagles</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line--red" />
+              <span>100–250 bald eagles</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line--darkred" />
+              <span>250+ bald eagles</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="legend-row">
+              <span className="legend-line legend-line--green" />
+              <span>0–100m to crossing (and residential streets)</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line--yellow" />
+              <span>100–200m</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line--red" />
+              <span>200–500m</span>
+            </div>
+            <div className="legend-row">
+              <span className="legend-line legend-line--darkred" />
+              <span>500m+</span>
+            </div>
+          </>
+        )}
+        <div className="legend-actions" style={{ minHeight: 28, display: 'flex', alignItems: 'center' }}>
+          {showLegendButton ? (
+            <button
+              type="button"
+              className="legend-button"
+              onClick={() => {
+                const next = (legendUnitIndex + 1) % 6;
+                setLegendUnitIndex(next);
+                if (next === 1 || next === 2 || next === 3 || next === 4) {
+                  setShowLegendButton(false);
+                  setTimeout(() => setShowLegendButton(true), 2000);
+                }
+              }}
+              aria-label="Change units"
+              title="Change units"
+            >
               Change units
             </button>
-          )}
+          ) : legendUnitIndex === 1 ? (
+            <span style={{ fontWeight: 700, fontSize: 14, color: '#1b5e20' }}>No! 🙂</span>
+          ) : legendUnitIndex === 2 ? (
+            <span style={{ fontWeight: 700, fontSize: 14, color: '#1b5e20' }}>still no! 🙂</span>
+          ) : legendUnitIndex === 3 ? (
+            <span style={{ fontWeight: 700, fontSize: 14, color: '#1b5e20' }}>ok fine 🙂</span>
+          ) : legendUnitIndex === 4 ? (
+            <span style={{ fontWeight: 700, fontSize: 14, color: '#1b5e20' }}>welcome back 🙂</span>
+          ) : null}
         </div>
       </div>
     </div>

@@ -226,7 +226,7 @@ export default function UnmarkedCrossingInfoPanel({
           <tbody>
             {typeof dist === 'number' ? (
               <tr>
-                <td style={tableKeyStyle}>Dist to marked</td>
+                <td style={tableKeyStyle}>Dist to marked crossing</td>
                 <td style={tableValueStyle}>
                   <strong>{Math.round(dist)}m</strong>
                 </td>
