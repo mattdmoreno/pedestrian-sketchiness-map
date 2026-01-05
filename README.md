@@ -1,4 +1,6 @@
-# Pedestrian sketchiness map
+# Crosswalk Availability Map
+
+https://michaelthoreau.github.io/pedestrian-sketchiness-map/
 
 This repo will generate a **normal-looking basemap** for Seattle from OpenStreetMap data and package it as **PMTiles** (vector tiles).
 
