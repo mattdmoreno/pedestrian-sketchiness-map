@@ -344,19 +344,29 @@ export default function FroggerPage() {
     }
   };
 
+
+  // Make randomSpawnDelaySec available everywhere in the component
+  function randomSpawnDelaySec(speedMph: number | null) {
+    // Faster streets feel "busier" by spawning slightly more often.
+    const mph = typeof speedMph === 'number' && Number.isFinite(speedMph) ? speedMph : 25;
+    const base = clampNumber(1.6 - mph / 80, 0.7, 1.6);
+    // Adjust by road type
+    let roadType = (params.highway || '').toLowerCase();
+    let typeMult = 1;
+    if (roadType.includes('residential')) typeMult = 6;
+    else if (roadType.includes('tertiary')) typeMult = 3;
+    else if (roadType.includes('secondary')) typeMult = 2;
+    else if (roadType.includes('primary')) typeMult = 1;
+    else if (roadType.includes('trunk')) typeMult = 0.75;
+    return { base, typeMult, delay: base * (0.6 + Math.random() * 0.9) * typeMult };
+  }
+
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
 
     const laneHDesktop = LANE_H_DESKTOP;
-
-    const randomSpawnDelaySec = (speedMph: number | null) => {
-      // Faster streets feel "busier" by spawning slightly more often.
-      const mph = typeof speedMph === 'number' && Number.isFinite(speedMph) ? speedMph : 25;
-      const base = clampNumber(1.6 - mph / 80, 0.7, 1.6);
-      return base * (0.6 + Math.random() * 0.9);
-    };
 
     const resize = () => {
       const width = Math.max(280, Math.min(720, Math.floor(container.getBoundingClientRect().width)));
@@ -393,10 +403,11 @@ export default function FroggerPage() {
         t: 0,
         nextSpawnByLane: Array.from({ length: params.lanes }, (_, laneIdx) => {
           // If this is the middle lane (for odd lane counts), double the spawn delay
+          const { delay } = randomSpawnDelaySec(params.speedMph);
           if (params.lanes % 2 === 1 && laneIdx === Math.floor(params.lanes / 2)) {
-            return randomSpawnDelaySec(params.speedMph) * 8;
+            return 0 + delay * 8;
           }
-          return randomSpawnDelaySec(params.speedMph);
+          return 0 + delay;
         }),
         carSpeedPxPerSec: basePx,
       };
@@ -555,26 +566,38 @@ export default function FroggerPage() {
           spawn.t += dt;
 
           for (let laneIndex = 0; laneIndex < params.lanes; laneIndex++) {
-            if (spawn.t < spawn.nextSpawnByLane[laneIndex]) continue;
+            while (spawn.t >= spawn.nextSpawnByLane[laneIndex]) {
+              let dir: 1 | -1;
+              const midIdx = Math.floor(params.lanes / 2);
+              if (params.lanes % 2 === 1 && laneIndex === midIdx) {
+                // Middle lane: random direction
+                dir = Math.random() < 0.5 ? 1 : -1;
+              } else if (laneIndex < params.lanes / 2) {
+                // Top half: right to left
+                dir = -1;
+              } else {
+                // Bottom half: left to right
+                dir = 1;
+              }
+              const widthVar = 70 + Math.floor(Math.random() * 50);
+              const startX = dir === 1 ? -widthVar - 10 : canvas.width + widthVar + 10;
+              carsRef.current.push({
+                laneIndex,
+                x: startX,
+                width: widthVar,
+                speedPxPerSec: spawn.carSpeedPxPerSec,
+                dir,
+              });
 
-            const dir: 1 | -1 = laneIndex % 2 === 0 ? 1 : -1;
-            const widthVar = 70 + Math.floor(Math.random() * 50);
-            const startX = dir === 1 ? -widthVar - 10 : canvas.width + widthVar + 10;
-            carsRef.current.push({
-              laneIndex,
-              x: startX,
-              width: widthVar,
-              speedPxPerSec: spawn.carSpeedPxPerSec,
-              dir,
-            });
-
-            const mph = params.speedMph ?? 25;
-            const base = clampNumber(1.6 - mph / 80, 0.7, 1.6);
-            // If this is the middle lane (for odd lane counts), double the spawn delay
-            if (params.lanes % 2 === 1 && laneIndex === Math.floor(params.lanes / 2)) {
-              spawn.nextSpawnByLane[laneIndex] = spawn.t + 2 * base * (0.6 + Math.random() * 0.9);
-            } else {
-              spawn.nextSpawnByLane[laneIndex] = spawn.t + base * (0.6 + Math.random() * 0.9);
+              // Use the same spawn delay logic as in resize, with typeMult
+              const { base, typeMult } = randomSpawnDelaySec(params.speedMph);
+              let delay;
+              if (params.lanes % 2 === 1 && laneIndex === Math.floor(params.lanes / 2)) {
+                delay = 2 * base * (0.6 + Math.random() * 0.9) * typeMult;
+              } else {
+                delay = base * (0.6 + Math.random() * 0.9) * typeMult;
+              }
+              spawn.nextSpawnByLane[laneIndex] += delay;
             }
           }
         }

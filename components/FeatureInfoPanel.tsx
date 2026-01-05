@@ -105,11 +105,19 @@ function buildFroggerHref(params: {
   return `/frogger?${sp.toString()}`;
 }
 
+function formatMaybeNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  const num = typeof value === 'string' ? Number(value) : Number.NaN;
+  return Number.isFinite(num) ? num : null;
+}
+
 function froggerDifficultyLabel(froggerIndex: number): string {
   if (!Number.isFinite(froggerIndex)) return 'easy';
   if (froggerIndex < 0.2) return 'easy';
   if (froggerIndex < 0.4) return 'medium';
   if (froggerIndex < 0.6) return 'hard';
+  // Spec defines 0.6–0.8 = Ft. Lauderdale; indexes above 0.8 are also Ft. Lauderdale.
+  // Treat anything >=0.6 as this top bucket.
   return 'Ft. Lauderdale';
 }
 
@@ -137,13 +145,15 @@ export default function FeatureInfoPanel({
     resetTimerRef.current = window.setTimeout(() => setTooltip('hidden'), 1200);
   };
 
-  const speedMph = maybeParseSpeedMph(info.maxspeed);
+  const lanes = formatMaybeNumber(info.lanes);
+  const dist = formatMaybeNumber(info.distanceMeters);
+  const speedMph = formatMaybeNumber(info.maxspeed) ?? maybeParseSpeedMph(info.maxspeed);
   const froggerHref = buildFroggerHref({
     name: info.title ?? null,
     highway: info.highwayType ?? null,
-    lanes: typeof info.lanes === 'number' ? info.lanes : null,
+    lanes,
     speedMph,
-    distToMarkedM: typeof info.distanceMeters === 'number' ? info.distanceMeters : null,
+    distToMarkedM: dist,
     froggerIndex: typeof info.froggerIndex === 'number' && Number.isFinite(info.froggerIndex) ? info.froggerIndex : null,
   });
 
@@ -164,7 +174,6 @@ export default function FeatureInfoPanel({
             >
               <i className="fa-solid fa-share-nodes" aria-hidden="true" />
             </button>
-
             <div
               style={{
                 position: 'absolute',
@@ -186,26 +195,26 @@ export default function FeatureInfoPanel({
             </div>
           </div>
         </div>
+        {/* Frogger Score Row */}
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#1b5e20', margin: '2px 0 2px 0' }}>
+          Frogger Difficulty Index: <span style={{ fontWeight: 900 }}>{typeof info.froggerIndex === 'number' && Number.isFinite(info.froggerIndex) ? info.froggerIndex.toFixed(2) : '—'}</span>
+        </div>
 
         <table style={tableStyle}>
           <tbody>
-            <tr>
-              <td style={tableKeyStyle}>Type</td>
-              <td style={tableValueStyle}>{info.highwayType}</td>
-            </tr>
-            {!info.isResidential && typeof info.distanceMeters === 'number' ? (
+            {typeof dist === 'number' ? (
               <tr>
                 <td style={tableKeyStyle}>Dist to marked</td>
                 <td style={tableValueStyle}>
-                  <strong>{info.distanceMeters}m</strong>
+                  <strong>{Math.round(dist)}m</strong>
                 </td>
               </tr>
             ) : null}
-            {typeof info.lanes === 'number' ? (
+            {typeof lanes === 'number' ? (
               <tr>
                 <td style={tableKeyStyle}>Lanes</td>
                 <td style={tableValueStyle}>
-                  <strong>{info.lanes}</strong>
+                  <strong>{lanes}</strong>
                 </td>
               </tr>
             ) : null}
@@ -217,17 +226,35 @@ export default function FeatureInfoPanel({
                 </td>
               </tr>
             ) : null}
-            <tr>
-              <td style={{ ...tableKeyStyle, paddingTop: 8 }}>Play Frogger</td>
-              <td style={{ ...tableValueStyle, paddingTop: 8 }}>
-                <a href={froggerHref} style={{ ...buttonStyle, padding: '6px 10px' }} aria-label="Play Frogger">
-                  <i className="fa-solid fa-play" aria-hidden="true" />
-                  Play
-                </a>
-              </td>
-            </tr>
           </tbody>
         </table>
+
+        {/* Big Try Crossing Button */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '12px 0 4px 0' }}>
+          <a
+            href={froggerHref}
+            style={{
+              display: 'inline-block',
+              background: 'linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)',
+              color: '#111',
+              fontWeight: 900,
+              fontSize: 20,
+              borderRadius: 12,
+              padding: '18px 36px',
+              textDecoration: 'none',
+              boxShadow: '0 2px 8px rgba(60,180,120,0.10)',
+              marginBottom: 6,
+              border: '2px solid #1b5e20',
+              transition: 'background 0.2s',
+            }}
+            aria-label="Try crossing here"
+          >
+            Try crossing here*
+          </a>
+          <div style={{ fontSize: 13, color: '#1b5e20', fontWeight: 700, marginTop: 2 }}>
+            *Frogger Difficulty: {froggerDifficultyLabel(typeof info.froggerIndex === 'number' && Number.isFinite(info.froggerIndex) ? info.froggerIndex : 0)}
+          </div>
+        </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'nowrap' }}>
           {info.actions.map((action) => (
@@ -251,7 +278,6 @@ export default function FeatureInfoPanel({
             </a>
           </div>
         ) : null}
-
       </div>
     </div>
   );

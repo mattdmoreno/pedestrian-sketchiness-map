@@ -199,7 +199,7 @@ export default function UnmarkedCrossingInfoPanel({
         </div>
         {/* Frogger Score Row */}
         <div style={{ fontSize: 13, fontWeight: 600, color: '#1b5e20', margin: '2px 0 2px 0' }}>
-          Frogger Score: <span style={{ fontWeight: 900 }}>{typeof info.froggerIndex === 'number' && Number.isFinite(info.froggerIndex) ? info.froggerIndex.toFixed(2) : '—'}</span>
+          Frogger Difficulty Index: <span style={{ fontWeight: 900 }}>{typeof info.froggerIndex === 'number' && Number.isFinite(info.froggerIndex) ? info.froggerIndex.toFixed(2) : '—'}</span>
         </div>
 
         <table style={tableStyle}>
