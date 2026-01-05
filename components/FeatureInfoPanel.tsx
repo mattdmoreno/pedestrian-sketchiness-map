@@ -95,6 +95,8 @@ function buildFroggerHref(params: {
   speedMph: number | null;
   distToMarkedM: number | null;
   froggerIndex: number | null;
+  lngLat?: maplibregl.LngLat;
+  zoom?: number;
 }): string {
   const sp = new URLSearchParams();
   if (params.name) sp.set('name', params.name);
