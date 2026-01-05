@@ -768,7 +768,14 @@ function FroggerPage() {
                 const lat = searchParams.get('lat');
                 const lng = searchParams.get('lng');
                 const z = searchParams.get('z') || searchParams.get('zoom');
-                let href = '/';
+                let base = '';
+                if (typeof window !== 'undefined') {
+                  base = window.location.origin;
+                  if (window.location.pathname.startsWith('/pedestrian-sketchiness-map')) {
+                    base += '/pedestrian-sketchiness-map';
+                  }
+                }
+                let href = base + '/';
                 if (lat && lng) {
                   href += `?lat=${lat}&lng=${lng}&pin=1`;
                   if (z) href += `&z=${z}`;
