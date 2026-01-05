@@ -176,7 +176,6 @@ export default function UnmarkedCrossingInfoPanel({
             >
               <i className="fa-solid fa-share-nodes" aria-hidden="true" />
             </button>
-
             <div
               style={{
                 position: 'absolute',
@@ -197,6 +196,10 @@ export default function UnmarkedCrossingInfoPanel({
               {tooltip === 'copied' ? 'Copied!' : tooltip === 'failed' ? 'Copy failed' : 'Copy link'}
             </div>
           </div>
+        </div>
+        {/* Frogger Score Row */}
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#1b5e20', margin: '2px 0 2px 0' }}>
+          Frogger Score: <span style={{ fontWeight: 900 }}>{typeof info.froggerIndex === 'number' && Number.isFinite(info.froggerIndex) ? info.froggerIndex.toFixed(2) : '—'}</span>
         </div>
 
         <table style={tableStyle}>
@@ -225,17 +228,35 @@ export default function UnmarkedCrossingInfoPanel({
                 </td>
               </tr>
             ) : null}
-            <tr>
-              <td style={{ ...tableKeyStyle, paddingTop: 8 }}>Play Frogger</td>
-              <td style={{ ...tableValueStyle, paddingTop: 8 }}>
-                <a href={froggerHref} style={{ ...buttonStyle, padding: '6px 10px' }} aria-label="Play Frogger">
-                  <i className="fa-solid fa-play" aria-hidden="true" />
-                  Play
-                </a>
-              </td>
-            </tr>
           </tbody>
         </table>
+
+        {/* Big Try Crossing Button */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '12px 0 4px 0' }}>
+          <a
+            href={froggerHref}
+            style={{
+              display: 'inline-block',
+              background: 'linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)',
+              color: '#111',
+              fontWeight: 900,
+              fontSize: 20,
+              borderRadius: 12,
+              padding: '18px 36px',
+              textDecoration: 'none',
+              boxShadow: '0 2px 8px rgba(60,180,120,0.10)',
+              marginBottom: 6,
+              border: '2px solid #1b5e20',
+              transition: 'background 0.2s',
+            }}
+            aria-label="Try crossing here"
+          >
+            Try crossing here*
+          </a>
+          <div style={{ fontSize: 13, color: '#1b5e20', fontWeight: 700, marginTop: 2 }}>
+            *Frogger Difficulty: {froggerDifficultyLabel(info.froggerIndex)}
+          </div>
+        </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'nowrap' }}>
           {info.actions.map((action) => (
