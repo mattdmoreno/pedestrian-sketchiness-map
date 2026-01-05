@@ -104,7 +104,14 @@ function buildFroggerHref(params: {
   if (typeof params.speedMph === 'number' && Number.isFinite(params.speedMph)) sp.set('speed', String(params.speedMph));
   if (typeof params.distToMarkedM === 'number' && Number.isFinite(params.distToMarkedM)) sp.set('dist', String(params.distToMarkedM));
   if (typeof params.froggerIndex === 'number' && Number.isFinite(params.froggerIndex)) sp.set('fi', String(params.froggerIndex));
-  return `/frogger?${sp.toString()}`;
+  let base = '';
+  if (typeof window !== 'undefined') {
+    base = window.location.origin;
+    if (window.location.pathname.startsWith('/pedestrian-sketchiness-map')) {
+      base += '/pedestrian-sketchiness-map';
+    }
+  }
+  return `${base}/frogger?${sp.toString()}`;
 }
 
 function formatMaybeNumber(value: unknown): number | null {
