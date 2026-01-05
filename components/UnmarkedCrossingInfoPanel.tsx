@@ -22,6 +22,7 @@ export type UnmarkedCrossingInfo = {
   roadHighway?: string | null;
   actions: ActionLink[];
   reportIssueUrl?: string | null;
+  zoom?: number;
 };
 
 const buttonStyle: React.CSSProperties = {
@@ -104,6 +105,14 @@ function buildFroggerHref(params: {
   if (typeof params.speedMph === 'number' && Number.isFinite(params.speedMph)) sp.set('speed', String(params.speedMph));
   if (typeof params.distToMarkedM === 'number' && Number.isFinite(params.distToMarkedM)) sp.set('dist', String(params.distToMarkedM));
   if (typeof params.froggerIndex === 'number' && Number.isFinite(params.froggerIndex)) sp.set('fi', String(params.froggerIndex));
+  // Add lat/lng/z if available
+  if (params.lngLat && typeof params.lngLat.lat === 'number' && typeof params.lngLat.lng === 'number') {
+    sp.set('lat', params.lngLat.lat.toFixed(6));
+    sp.set('lng', params.lngLat.lng.toFixed(6));
+    if (typeof params.zoom === 'number' && Number.isFinite(params.zoom)) {
+      sp.set('z', params.zoom.toFixed(2));
+    }
+  }
   let base = '';
   if (typeof window !== 'undefined') {
     base = window.location.origin;
@@ -164,6 +173,8 @@ export default function UnmarkedCrossingInfoPanel({
     speedMph,
     distToMarkedM: dist,
     froggerIndex: Number.isFinite(info.froggerIndex) ? info.froggerIndex : null,
+    lngLat: info.lngLat,
+    zoom: typeof info.zoom === 'number' ? info.zoom : undefined,
   });
 
   return (

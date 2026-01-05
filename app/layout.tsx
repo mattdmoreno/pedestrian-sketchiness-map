@@ -23,6 +23,19 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         />
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Seattle Crosswalk Accessibility Map" />
+        <meta property="og:description" content="Explore Seattle's best and sketchiest pedestrian infrastructure." />
+        <meta property="og:image" content="/image.jpg" />
+        <meta property="og:url" content="https://michaelthoreau.github.io/pedestrian-sketchiness-map/" />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Seattle Crosswalk Accessibility Map" />
+        <meta name="twitter:description" content="Explore Seattle's best and sketchiest pedestrian infrastructure." />
+        <meta name="twitter:image" content="/image.jpg" />
+
       </head>
       <body>{children}</body>
     </html>

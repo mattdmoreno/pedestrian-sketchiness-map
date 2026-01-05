@@ -636,6 +636,7 @@ export default function Map() {
               { href: osmViewUrl, label: 'OSM', iconUrl: osmFaviconUrl },
             ],
             reportIssueUrl,
+            zoom: map.getZoom(),
           });
         });
 
@@ -709,6 +710,7 @@ export default function Map() {
           { href: osmViewUrl, label: 'OSM', iconUrl: osmFaviconUrl },
         ],
         reportIssueUrl,
+        zoom: map.getZoom(),
       } satisfies FeatureInfo;
     };
 
@@ -776,6 +778,7 @@ export default function Map() {
           { href: osmViewUrl, label: 'OSM', iconUrl: osmFaviconUrl },
         ],
         reportIssueUrl,
+        zoom: map.getZoom(),
       } satisfies UnmarkedCrossingInfo;
     };
 

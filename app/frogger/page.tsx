@@ -14,9 +14,9 @@ type GameParams = {
 };
 
 const LANE_H_DESKTOP = 60;
-const SAFE_H_DESKTOP = 72;
+const SAFE_H_DESKTOP = 30;
 const SAFE_H_MOBILE = 44;
-const START_COUNTDOWN_MS = 3000;
+const START_COUNTDOWN_MS = 2000;
 const KEY_MOVE_COOLDOWN_MS = 90;
 
 function clampInt(value: number, min: number, max: number): number {
@@ -211,10 +211,10 @@ function StreetNameSign({ name, className }: { name: string; className?: string 
         border: '5px solid rgba(255, 255, 255, 0.95)',
         background: '#1b5e20',
         color: '#fff',
-        fontSize: 26,
         fontWeight: 900,
         fontFamily: 'Overpass, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
         letterSpacing: 0.2,
+        fontSize: 16,
         lineHeight: 1,
         textAlign: 'center',
         whiteSpace: 'nowrap',
@@ -698,8 +698,27 @@ function FroggerPage() {
   }, [params.lanes, params.speedMph, status, safeH]);
 
   const onBack = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
+    if (typeof window !== 'undefined') {
+      // Build URL to map with lat/lng/z/pin for restoring selection
+      const url = new URL(window.location.origin + '/');
+      // Use lat/lng from frogger params (not just searchParams)
+      if (params && typeof params === 'object') {
+        if (params.name && params.name !== 'Unknown street') {
+          // If lat/lng are present in searchParams, use those
+          const lat = searchParams.get('lat');
+          const lng = searchParams.get('lng');
+          const z = searchParams.get('z') || searchParams.get('zoom');
+          if (lat && lng) {
+            url.searchParams.set('lat', lat);
+            url.searchParams.set('lng', lng);
+            if (z) url.searchParams.set('z', z);
+            url.searchParams.set('pin', '1');
+            router.push(url.pathname + url.search);
+            return;
+          }
+        }
+      }
+      router.push('/');
       return;
     }
     router.push('/');
@@ -740,55 +759,73 @@ function FroggerPage() {
       >
         <div
           className="topRow"
-          style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}
-        >
-          <div className="froggerControls" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <button
-              type="button"
-              onClick={onBack}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 14px',
-                border: '1px solid rgba(0, 0, 0, 0.12)',
-                borderRadius: 10,
-                background: 'rgba(255, 255, 255, 0.92)',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 800,
-                lineHeight: 1.1,
-              }}
-              aria-label="Back to map"
-            >
-              <i className="fa-solid fa-arrow-left" aria-hidden="true" />
-              Back to map
-            </button>
+          style={{ display: 'flex', justifyContent: 'space-between', gap: 12}}
+        > 
+          <div className="froggerControls">
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              {/* Back to map as href */}
+              {(() => {
+                const lat = searchParams.get('lat');
+                const lng = searchParams.get('lng');
+                const z = searchParams.get('z') || searchParams.get('zoom');
+                let href = '/';
+                if (lat && lng) {
+                  href += `?lat=${lat}&lng=${lng}&pin=1`;
+                  if (z) href += `&z=${z}`;
+                }
+                return (
+                  <a
+                    href={href}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 14px',
+                      border: '1px solid rgba(0, 0, 0, 0.12)',
+                      borderRadius: 10,
+                      background: 'rgba(255, 255, 255, 0.92)',
+                      color: 'inherit',
+                      cursor: 'pointer',
+                      fontSize: 14,
+                      fontWeight: 800,
+                      lineHeight: 1.1,
+                      textDecoration: 'none',
+                    }}
+                    aria-label="Back to map"
+                  >
+                    <i className="fa-solid fa-arrow-left" aria-hidden="true" />
+                    Back to map
+                  </a>
+                );
+              })()}
 
-            <button
-              type="button"
-              onClick={onReset}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 14px',
-                border: '1px solid rgba(0, 0, 0, 0.12)',
-                borderRadius: 10,
-                background: 'rgba(255, 255, 255, 0.92)',
-                color: 'inherit',
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 800,
-                lineHeight: 1.1,
-              }}
-              aria-label="Reset"
-            >
-              <i className="fa-solid fa-rotate-right" aria-hidden="true" />
-              Reset
-            </button>
+              <button
+                type="button"
+                onClick={onReset}
+                className='resetButton'
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 14px',
+                  border: '1px solid rgba(0, 0, 0, 0.12)',
+                  borderRadius: 10,
+                  background: 'rgba(255, 255, 255, 0.92)',
+                  color: 'inherit',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  lineHeight: 1.1,
+                }}
+                aria-label="Reset"
+              >
+                <i className="fa-solid fa-rotate-right" aria-hidden="true" />
+                Reset
+              </button>
+            </div>
+            <StreetNameSign name={params.name} className="streetSign" />
           </div>
+          
 
           <div className="infoTop" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div className="speedSign">
@@ -810,18 +847,7 @@ function FroggerPage() {
         </div>
 
         <div ref={canvasWrapRef} className="canvasWrap" style={{ marginTop: 10, position: 'relative' }}>
-          <div
-            className="streetSignWrap"
-            style={{
-              position: 'absolute',
-              left: 12,
-              top: isSmallScreen ? Math.max(8, safeH - 50) : safeH,
-              zIndex: 1,
-              pointerEvents: 'none',
-            }}
-          >
-            <StreetNameSign name={params.name} className="streetSign" />
-          </div>
+
 
           <canvas
             ref={canvasRef}
@@ -966,8 +992,17 @@ function FroggerPage() {
       </div>
 
       <style jsx>{`
-        .streetSignWrap {
-          transform: translateY(-50%);
+
+        .froggerControls {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          height: 100% !important;
+          gap: 30px;
+        }
+
+        .streetSign {
+          font-size: 26px !important;
         }
 
         .infoBottom {
@@ -990,6 +1025,7 @@ function FroggerPage() {
         .distanceArrow {
           display: block;
         }
+        
 
         @media (max-width: 640px) {
           .page {
@@ -1004,6 +1040,10 @@ function FroggerPage() {
             padding: 10px 10px calc(14px + 84px) 10px !important;
           }
 
+          .streetSign {
+            font-size: 14px;
+          }
+
           .canvasWrap {
             flex: 1;
             min-height: 0;
@@ -1014,6 +1054,13 @@ function FroggerPage() {
           }
 
           .froggerControls {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            width: 100%;
+          }
+            
+          .resetButton {
             display: none !important;
           }
 
@@ -1048,18 +1095,6 @@ function FroggerPage() {
             display: none !important;
           }
 
-          .streetSign {
-            font-size: 16px !important;
-            padding: 8px 12px !important;
-            border-width: 3px !important;
-            border-radius: 8px !important;
-            max-width: calc(100% - 24px) !important;
-          }
-
-          .streetSignWrap {
-            transform: translateY(calc(-50% - 30px));
-          }
-
           .touchControls {
             display: flex;
             flex-direction: column;
@@ -1083,10 +1118,6 @@ function FroggerPage() {
 
           .card {
             padding: 10px !important;
-          }
-
-          .topRow {
-            gap: 8px !important;
           }
 
           .canvasWrap {
