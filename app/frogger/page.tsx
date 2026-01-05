@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 
@@ -264,7 +264,7 @@ function DistanceArrowInline({ meters }: { meters: number }) {
   );
 }
 
-export default function FroggerPage() {
+function FroggerPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -1128,5 +1128,13 @@ export default function FroggerPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function PageWrapper() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <FroggerPage />
+    </Suspense>
   );
 }
