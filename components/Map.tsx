@@ -10,6 +10,8 @@ import FeatureInfoPanel, { type FeatureInfo } from './FeatureInfoPanel';
 import UnmarkedCrossingInfoPanel, { type UnmarkedCrossingInfo } from './UnmarkedCrossingInfoPanel';
 
 const SEATTLE_CENTER: [number, number] = [-122.3321, 47.6062];
+const SF_CENTER: [number, number] = [-122.4194, 37.7749];
+const DEFAULT_ZOOM = 13;
 
 const SKETCHINESS_LAYER_IDS = ['sketchiness-lines-out', 'sketchiness-lines-in'] as const;
 
@@ -118,7 +120,10 @@ function buildBasicOpenMapTilesStyle(pmtilesUrl: string, sketchinessUrl: string)
     // Residential streets are always green; other roads scale by distance.
     'line-color': [
       'case',
-      ['==', ['get', 'highway'], 'residential'],
+      ['any',
+        ['==', ['get', 'highway'], 'residential'],
+        ['==', ['get', 'highway'], 'living_street'],
+      ],
       '#4caf50',
       ['interpolate', ['linear'], ['get', 'dist_to_crossing_meters'], 0, '#4caf50', 100, '#fdd835', 200, '#e53935', 500, '#b71c1c'],
     ],
@@ -129,16 +134,14 @@ function buildBasicOpenMapTilesStyle(pmtilesUrl: string, sketchinessUrl: string)
 
   return {
     version: 8,
-    name: 'Seattle (PMTiles) – basic',
-    // MapLibre validates `glyphs` as required. Using the public OpenMapTiles font server for now.
-    // If/when you want fully offline hosting, serve your own glyph PBFs.
-    glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf',
+    name: 'MapTiler Streets + Sketchiness',
+    glyphs: 'https://api.maptiler.com/fonts/{fontstack}/{range}.pbf?key=X9vdtkgWljJC5TAQyTee',
     sources: {
       omtiles: {
         type: 'vector',
-        url: `pmtiles://${pmtilesUrl}`,
+        url: 'https://api.maptiler.com/tiles/v3/tiles.json?key=X9vdtkgWljJC5TAQyTee',
         attribution:
-          '<a href="https://www.openmaptiles.org/" target="_blank">&copy; OpenMapTiles</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
+          '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
       },
       sketchiness: {
         type: 'vector',
@@ -450,10 +453,12 @@ export default function Map() {
     return `${root}/basemap-seattle.pmtiles`;
   }, [basePath, tilesBaseUrl]);
 
-  const sketchinessUrl = useMemo(() => {
+  const sketchinessUrl = useMemo(() => { 
+    if (typeof window === 'undefined') return ''; 
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const root = tilesBaseUrl ?? `${origin}${basePath}`;
-    return `${root}/sketchiness.pmtiles`;
+    // Otherwise (static hosting), serve PMTiles from this site under basePath. 
+    return `${root}/sketchiness-all.pmtiles`; 
   }, [basePath, tilesBaseUrl]);
 
   const style = useMemo(() => buildBasicOpenMapTilesStyle(pmtilesUrl, sketchinessUrl), [pmtilesUrl, sketchinessUrl]);
@@ -668,7 +673,7 @@ export default function Map() {
 
       let displayName = props.name;
       const highwayType = props.highway ? capitalize(props.highway) : 'Unknown Type';
-      const isResidential = props.highway === 'residential';
+      const isResidential = props.highway === 'residential' || props.highway === 'living_street';
 
       if (!displayName) {
         displayName = `${highwayType} Road`;
@@ -925,6 +930,7 @@ export default function Map() {
   }, [style]);
 
   return (
+
     <div className={selected || selectedUnmarked ? 'map-shell map-shell--has-selection' : 'map-shell'}>
       <div id="map" ref={mapContainerRef} />
 
@@ -932,7 +938,33 @@ export default function Map() {
       {selectedUnmarked ? <UnmarkedCrossingInfoPanel info={selectedUnmarked} onShare={handleShare} /> : null}
 
       <div className="map-overlay map-overlay--title" role="heading" aria-level={1}>
-        Seattle Crosswalk Availability Map
+        Seattle/SF Crosswalk Availability Map
+        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            style={{ padding: '2px 10px', borderRadius: 4, border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
+            onClick={() => {
+              if (mapRef.current) {
+                mapRef.current.setCenter(SEATTLE_CENTER);
+                mapRef.current.setZoom(DEFAULT_ZOOM);
+              }
+            }}
+          >
+            Zoom to Seattle
+          </button>
+          <button
+            type="button"
+            style={{ padding: '2px 10px', borderRadius: 4, border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
+            onClick={() => {
+              if (mapRef.current) {
+                mapRef.current.setCenter(SF_CENTER);
+                mapRef.current.setZoom(DEFAULT_ZOOM);
+              }
+            }}
+          >
+            Zoom to SF
+          </button>
+        </div>
       </div>
 
       <div className="map-overlay map-overlay--legend" aria-label="Legend">

@@ -1,21 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 DATA_DIR="$ROOT_DIR/data"
-
-PBF_URL="https://download.bbbike.org/osm/bbbike/Seattle/Seattle.osm.pbf"
-PBF_PATH="$DATA_DIR/Seattle.osm.pbf"
-
 mkdir -p "$DATA_DIR"
 
-if [[ -f "$PBF_PATH" ]]; then
-  echo "Already exists: $PBF_PATH"
-  exit 0
-fi
+# List of areas: name|url|filename
+AREAS=(
+  "Seattle|https://download.bbbike.org/osm/bbbike/Seattle/Seattle.osm.pbf|Seattle.osm.pbf"
+  "Bay Area|https://download.bbbike.org/osm/bbbike/SanFrancisco/SanFrancisco.osm.pbf|SanFrancisco.osm.pbf"
+)
 
-echo "Downloading Seattle extract…"
-# -L follow redirects; --fail to error on non-200
-curl -L --fail --retry 3 --retry-delay 2 -o "$PBF_PATH" "$PBF_URL"
+download_pbf() {
+  local name="$1"
+  local url="$2"
+  local filename="$3"
+  local path="$DATA_DIR/$filename"
+  if [[ -f "$path" ]]; then
+    echo "Already exists: $path"
+  else
+    echo "Downloading $name extract…"
+    curl -L --fail --retry 3 --retry-delay 2 -o "$path" "$url"
+    echo "Downloaded: $path"
+  fi
+}
 
-echo "Downloaded: $PBF_PATH"
+for area in "${AREAS[@]}"; do
+  IFS='|' read -r name url filename <<< "$area"
+  download_pbf "$name" "$url" "$filename"
+done

@@ -12,9 +12,14 @@ if ! docker compose ps --status running --services | grep -qx "db"; then
 	docker compose up -d db
 fi
 
+
+
+# Use a single unified database for all areas
+DB_NAME="pedestrians_all"
+
 echo "Waiting for database to be ready..."
 for i in {1..60}; do
-	if docker compose exec -T db pg_isready -U postgres -d seattle_pedestrians >/dev/null 2>&1; then
+	if docker compose exec -T db pg_isready -U postgres -d "$DB_NAME" >/dev/null 2>&1; then
 		break
 	fi
 	sleep 1
@@ -34,7 +39,7 @@ if [ -n "${BBOX_BUFFER_M:-}" ]; then PSQL_VARS+=( -v "bbox_buffer_m=$BBOX_BUFFER
 echo "Phase 1/3: Build crosswalk/road linkage tables"
 docker compose exec -T db psql \
 	-U postgres \
-	-d seattle_pedestrians \
+	-d "$DB_NAME" \
 	-X \
 	"${PSQL_VARS[@]}" \
 	-v ON_ERROR_STOP=1 \
@@ -44,7 +49,7 @@ docker compose exec -T db psql \
 echo "Phase 2/3: Build 20m segments + crosswalk distances"
 docker compose exec -T db psql \
 	-U postgres \
-	-d seattle_pedestrians \
+	-d "$DB_NAME" \
 	-X \
 	"${PSQL_VARS[@]}" \
 	-v ON_ERROR_STOP=1 \
@@ -54,7 +59,7 @@ docker compose exec -T db psql \
 echo "Phase 3/3: Build unmarked crosswalks table"
 docker compose exec -T db psql \
 	-U postgres \
-	-d seattle_pedestrians \
+	-d "$DB_NAME" \
 	-X \
 	"${PSQL_VARS[@]}" \
 	-v ON_ERROR_STOP=1 \

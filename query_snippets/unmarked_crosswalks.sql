@@ -43,7 +43,7 @@ WITH unmarked AS (
         cp.unmarked,
         cp.geom
     FROM crosswalk_raw_points cp
-    WHERE cp.unmarked IS TRUE
+    WHERE cp.marked IS FALSE
 ),
 unmarked_roads AS (
     SELECT DISTINCT
