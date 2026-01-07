@@ -8,7 +8,7 @@ PUBLIC_DIR="$ROOT_DIR/public"
 mkdir -p "$PUBLIC_DIR"
 
 # Ensure the San Antonio PMTiles exist
-PMTILES="$DATA_DIR/basemap-san-antonio.pmtiles"
+PMTILES="$DATA_DIR"/basemap-san-antonio.pmtiles"
 if [[ ! -f "$PMTILES" ]]; then
   echo "Error: missing $PMTILES" >&2
   echo "Run the tile build first (see README)." >&2
