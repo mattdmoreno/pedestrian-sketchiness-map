@@ -10,8 +10,7 @@ TIPPECANOE_READ_PARALLEL="${TIPPECANOE_READ_PARALLEL:-1}"
 
 # List of areas: name|dbname
 AREAS=(
-  "Seattle|seattle_pedestrians"
-  "Bay Area|bayarea_pedestrians"
+  "San Antonio|San Antonio_pedestrians"
 )
 
 OUT_MBTILES="$DATA_DIR/sketchiness-all.mbtiles"
