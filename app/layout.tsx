@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Seattle Crosswalk Accessibility Map',
-  description: 'Seattle basemap + overlays from PMTiles',
+  title: 'San Antonio Crosswalk Accessibility Map',
+  description: 'San Antonio basemap + overlays from PMTiles',
 };
 
 export default function RootLayout({
@@ -25,15 +25,15 @@ export default function RootLayout({
         />
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
-        <meta property="og:title" content="Seattle Crosswalk Accessibility Map" />
-        <meta property="og:description" content="Explore Seattle's best and sketchiest pedestrian infrastructure." />
+        <meta property="og:title" content="San Antonio Crosswalk Accessibility Map" />
+        <meta property="og:description" content="Explore San Antonio's best and sketchiest pedestrian infrastructure." />
         <meta property="og:image" content="/image.jpg" />
         <meta property="og:url" content="https://michaelthoreau.github.io/pedestrian-sketchiness-map/" />
 
         {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Seattle Crosswalk Accessibility Map" />
-        <meta name="twitter:description" content="Explore Seattle's best and sketchiest pedestrian infrastructure." />
+        <meta name="twitter:title" content="San Antonio Crosswalk Accessibility Map" />
+        <meta name="twitter:description" content="San Antonio Seattle's best and sketchiest pedestrian infrastructure." />
         <meta name="twitter:image" content="/image.jpg" />
 
       </head>
