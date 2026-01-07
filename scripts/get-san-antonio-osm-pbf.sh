@@ -9,8 +9,7 @@ mkdir -p "$DATA_DIR"
 
 # List of areas: name|url|filename
 AREAS=(
-  "Seattle|https://download.bbbike.org/osm/bbbike/Seattle/Seattle.osm.pbf|Seattle.osm.pbf"
-  "Bay Area|https://download.bbbike.org/osm/bbbike/SanFrancisco/SanFrancisco.osm.pbf|SanFrancisco.osm.pbf"
+  "San Antonio|https://download.bbbike.org/osm/extract/planet_-98.928,29.245_-98.025,29.718.osm.pbf"
 )
 
 download_pbf() {
